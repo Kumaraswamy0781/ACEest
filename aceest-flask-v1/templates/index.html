@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ACEest Functional Fitness</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>ACEest Functional Fitness</h1>
+      <p>Explore the original ACEest workout and nutrition plans</p>
+    </header>
+
+    <main class="layout">
+      <aside class="panel selector-panel">
+        <h2>Choose a program</h2>
+        <form method="get" action="{{ url_for('index') }}">
+          <label for="program">Fitness program</label>
+          <select id="program" name="program" required>
+            <option value="" disabled {% if not selected_id %}selected{% endif %}>Select a program</option>
+            {% for program_id, program in programs.items() %}
+              <option value="{{ program_id }}" {% if selected_id == program_id %}selected{% endif %}>{{ program.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">View plan</button>
+        </form>
+
+        <div class="metrics" aria-label="Site reference metrics">
+          <h3>Site reference</h3>
+          <p>Capacity: 150 users</p>
+          <p>Area: 10,000 sq ft</p>
+          <p>Break-even: 250 members</p>
+        </div>
+      </aside>
+
+      <section class="plans" aria-live="polite">
+        {% if selected %}
+          <p class="eyebrow">Selected program</p>
+          <h2>{{ selected.name }}</h2>
+          <div class="plan-grid">
+            <article class="panel plan-card" style="--accent: {{ selected.color }}">
+              <h3>Weekly workout chart</h3>
+              <pre>{{ selected.workout }}</pre>
+            </article>
+            <article class="panel plan-card" style="--accent: {{ selected.color }}">
+              <h3>Daily nutrition plan</h3>
+              <pre>{{ selected.diet }}</pre>
+            </article>
+          </div>
+        {% else %}
+          <div class="panel empty-state">
+            <h2>Your plan starts here</h2>
+            <p>Select a fitness program to view its workout and diet plan.</p>
+          </div>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>
