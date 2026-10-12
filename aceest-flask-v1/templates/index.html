@@ -14,8 +14,20 @@
 
     <main class="layout">
       <aside class="panel selector-panel">
-        <h2>Choose a program</h2>
-        <form method="get" action="{{ url_for('index') }}">
+        <h2>Client profile</h2>
+        <form method="post" action="{{ url_for('save_client') }}">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" value="{{ values.get('name', '') }}" required>
+          {% if errors.get('name') %}<p class="field-error">{{ errors.name }}</p>{% endif %}
+
+          <label for="age">Age</label>
+          <input id="age" name="age" type="number" min="1" step="1" value="{{ values.get('age', '') }}" required>
+          {% if errors.get('age') %}<p class="field-error">{{ errors.age }}</p>{% endif %}
+
+          <label for="weight">Weight (kg)</label>
+          <input id="weight" name="weight" type="number" min="0.1" step="0.1" value="{{ values.get('weight', '') }}" required>
+          {% if errors.get('weight') %}<p class="field-error">{{ errors.weight }}</p>{% endif %}
+
           <label for="program">Fitness program</label>
           <select id="program" name="program" required>
             <option value="" disabled {% if not selected_id %}selected{% endif %}>Select a program</option>
@@ -23,7 +35,13 @@
               <option value="{{ program_id }}" {% if selected_id == program_id %}selected{% endif %}>{{ program.name }}</option>
             {% endfor %}
           </select>
-          <button type="submit">View plan</button>
+          {% if errors.get('program') %}<p class="field-error">{{ errors.program }}</p>{% endif %}
+
+          <label for="adherence">Weekly adherence: <output id="adherence-value">{{ values.get('adherence', '0') }}%</output></label>
+          <input id="adherence" name="adherence" type="range" min="0" max="100" step="1" value="{{ values.get('adherence', '0') }}">
+          {% if errors.get('adherence') %}<p class="field-error">{{ errors.adherence }}</p>{% endif %}
+
+          <button type="submit">Save client and view plan</button>
         </form>
 
         <div class="metrics" aria-label="Site reference metrics">
@@ -35,6 +53,18 @@
       </aside>
 
       <section class="plans" aria-live="polite">
+        {% if client %}
+          <div class="panel client-summary">
+            <h2>Client summary</h2>
+            <p><strong>Name:</strong> {{ client.name }}</p>
+            <p><strong>Age:</strong> {{ client.age }}</p>
+            <p><strong>Weight:</strong> {{ client.weight }} kg</p>
+            <p><strong>Program:</strong> {{ client.program }}</p>
+            <p><strong>Weekly adherence:</strong> {{ client.adherence }}%</p>
+            <p class="calorie-estimate"><strong>Estimated calories:</strong> {{ client.calories }} kcal/day</p>
+            <p class="note">This version displays the submitted profile but does not store it after the response.</p>
+          </div>
+        {% endif %}
         {% if selected %}
           <p class="eyebrow">Selected program</p>
           <h2>{{ selected.name }}</h2>
@@ -56,5 +86,15 @@
         {% endif %}
       </section>
     </main>
+    <script>
+      const adherence = document.getElementById("adherence");
+      const adherenceValue = document.getElementById("adherence-value");
+      if (adherence && adherenceValue) {
+        adherence.addEventListener("input", () => {
+          adherenceValue.value = `${adherence.value}%`;
+        });
+      }
+    </script>
   </body>
 </html>
+

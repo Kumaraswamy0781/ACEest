@@ -1,4 +1,6 @@
-"""Flask version of the original ACEest program viewer."""
+"""Flask version 1.1 of the ACEest fitness program viewer."""
+
+import math
 
 from flask import Flask, abort, jsonify, render_template, request
 
@@ -21,6 +23,7 @@ PROGRAMS = {
             "Target: 2,000 kcal"
         ),
         "color": "#e74c3c",
+        "calorie_factor": 22,
     },
     "muscle-gain": {
         "name": "Muscle Gain (MG)",
@@ -39,6 +42,7 @@ PROGRAMS = {
             "Target: 3,200 kcal"
         ),
         "color": "#2ecc71",
+        "calorie_factor": 35,
     },
     "beginner": {
         "name": "Beginner (BG)",
@@ -51,6 +55,7 @@ PROGRAMS = {
             "Protein: 120g/day"
         ),
         "color": "#3498db",
+        "calorie_factor": 26,
     },
 }
 
@@ -68,7 +73,72 @@ def create_app():
             programs=PROGRAMS,
             selected_id=program_id,
             selected=PROGRAMS.get(program_id),
+            values={},
+            client=None,
+            errors={},
         )
+
+    @app.post("/")
+    def save_client():
+        values = {
+            "name": request.form.get("name", "").strip(),
+            "age": request.form.get("age", "").strip(),
+            "weight": request.form.get("weight", "").strip(),
+            "program": request.form.get("program", "").strip(),
+            "adherence": request.form.get("adherence", "0").strip(),
+        }
+        errors = {}
+
+        if not values["name"]:
+            errors["name"] = "Enter the client's name."
+        if values["program"] not in PROGRAMS:
+            errors["program"] = "Choose one of the listed programs."
+
+        age = None
+        try:
+            age = int(values["age"])
+            if age < 1:
+                errors["age"] = "Age must be a positive whole number."
+        except ValueError:
+            errors["age"] = "Enter age as a positive whole number."
+
+        weight = None
+        try:
+            weight = float(values["weight"])
+            if not math.isfinite(weight) or weight <= 0:
+                errors["weight"] = "Weight must be a positive number."
+        except ValueError:
+            errors["weight"] = "Enter weight as a positive number."
+
+        adherence = None
+        try:
+            adherence = int(values["adherence"])
+            if not 0 <= adherence <= 100:
+                errors["adherence"] = "Adherence must be between 0 and 100."
+        except ValueError:
+            errors["adherence"] = "Enter adherence as a whole number from 0 to 100."
+
+        selected = PROGRAMS.get(values["program"])
+        client = None
+        if not errors:
+            client = {
+                "name": values["name"],
+                "age": age,
+                "weight": weight,
+                "program": selected["name"],
+                "adherence": adherence,
+                "calories": int(weight * selected["calorie_factor"]),
+            }
+
+        return render_template(
+            "index.html",
+            programs=PROGRAMS,
+            selected_id=values["program"],
+            selected=selected,
+            values=values,
+            client=client,
+            errors=errors,
+        ), (400 if errors else 200)
 
     @app.get("/api/programs")
     def list_programs():
@@ -92,3 +162,4 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)
+

@@ -39,19 +39,24 @@ h3 { margin-top: 0; }
 
 label { display: block; margin-bottom: 8px; }
 
-select, button {
+input, select, button {
   width: 100%;
   min-height: 44px;
   border-radius: 6px;
   font: inherit;
 }
 
-select {
+input:not([type="range"]), select {
   border: 1px solid #7c7045;
   background: #292929;
   color: #fff;
   padding: 8px 12px;
 }
+
+form label { margin-top: 14px; }
+input[type="range"] { accent-color: #d4af37; }
+output { color: #d4af37; font-weight: bold; }
+.field-error { margin: 5px 0 0; color: #ff8585; font-size: 14px; }
 
 button {
   margin-top: 14px;
@@ -78,6 +83,10 @@ button:hover, button:focus-visible { background: #efc94c; }
 }
 
 .plan-grid { display: grid; gap: 20px; }
+.client-summary { margin-bottom: 20px; }
+.client-summary p { margin: 8px 0; }
+.calorie-estimate { color: #d4af37; font-size: 18px; }
+.note { color: #bdbdbd; font-size: 13px; }
 .plan-card { border-top: 4px solid var(--accent); }
 .plan-card h3 { color: var(--accent); }
 .plan-card pre {
@@ -95,3 +104,4 @@ button:hover, button:focus-visible { background: #efc94c; }
   .layout { grid-template-columns: 1fr; margin-top: 20px; }
   .metrics { margin-top: 24px; }
 }
+

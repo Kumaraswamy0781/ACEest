@@ -1,4 +1,4 @@
-"""Behavior checks for the first ACEest Flask version."""
+"""Behavior checks for ACEest Flask version 1.1."""
 
 from html import unescape
 
@@ -19,7 +19,7 @@ def test_home_prompts_for_program_selection(client):
 
     assert response.status_code == 200
     page = response.get_data(as_text=True)
-    assert "Choose a program" in page
+    assert "Client profile" in page
     assert "Select a fitness program to view its workout and diet plan." in page
 
 
@@ -80,3 +80,67 @@ def test_stylesheet_is_served(client):
 
     assert response.status_code == 200
     assert b".site-header" in response.data
+
+
+@pytest.mark.parametrize(
+    "program_id, expected_calories",
+    [("fat-loss", 1540), ("muscle-gain", 2450), ("beginner", 1820)],
+)
+def test_valid_client_submission_shows_calorie_estimate(client, program_id, expected_calories):
+    response = client.post("/", data={
+        "name": "Asha",
+        "age": "30",
+        "weight": "70",
+        "program": program_id,
+        "adherence": "85",
+    })
+
+    page = unescape(response.get_data(as_text=True))
+    assert response.status_code == 200
+    assert "Client summary" in page
+    assert "Asha" in page
+    assert "85%" in page
+    assert f"{expected_calories} kcal/day" in page
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"name": "   "},
+        {"age": "zero"},
+        {"age": "0"},
+        {"weight": "-5"},
+        {"weight": "nan"},
+        {"program": "unknown"},
+        {"adherence": "101"},
+    ],
+)
+def test_invalid_client_submission_shows_validation_error(client, overrides):
+    data = {
+        "name": "Asha",
+        "age": "30",
+        "weight": "70",
+        "program": "fat-loss",
+        "adherence": "85",
+    }
+    data.update(overrides)
+
+    response = client.post("/", data=data)
+
+    assert response.status_code == 400
+    assert b"field-error" in response.data
+    assert b"Client summary" not in response.data
+
+
+def test_submitted_profile_is_not_persisted_between_requests(client):
+    client.post("/", data={
+        "name": "Asha",
+        "age": "30",
+        "weight": "70",
+        "program": "fat-loss",
+        "adherence": "85",
+    })
+
+    response = client.get("/")
+    assert b"Asha" not in response.data
+    assert b"Client summary" not in response.data
