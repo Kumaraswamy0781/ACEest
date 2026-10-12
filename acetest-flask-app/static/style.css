@@ -1,0 +1,107 @@
+:root {
+  color-scheme: dark;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #111111;
+  color: #f5f3eb;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; }
+
+.site-header {
+  background: #d4af37;
+  color: #17130a;
+  padding: 30px max(24px, calc((100vw - 1180px) / 2));
+}
+
+.site-header h1 { margin: 0 0 8px; font-size: clamp(27px, 4vw, 38px); }
+.site-header p { margin: 0; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  max-width: 1228px;
+  margin: 32px auto;
+  padding: 0 24px;
+}
+
+.panel {
+  background: #1d1d1d;
+  border: 1px solid #40391f;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+h2 { margin-top: 0; }
+h3 { margin-top: 0; }
+
+label { display: block; margin-bottom: 8px; }
+
+input, select, button {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 6px;
+  font: inherit;
+}
+
+input:not([type="range"]), select {
+  border: 1px solid #7c7045;
+  background: #292929;
+  color: #fff;
+  padding: 8px 12px;
+}
+
+form label { margin-top: 14px; }
+input[type="range"] { accent-color: #d4af37; }
+output { color: #d4af37; font-weight: bold; }
+.field-error { margin: 5px 0 0; color: #ff8585; font-size: 14px; }
+
+button {
+  margin-top: 14px;
+  border: 0;
+  background: #d4af37;
+  color: #17130a;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover, button:focus-visible { background: #efc94c; }
+
+.metrics { margin-top: 36px; color: #d8d8d8; }
+.metrics h3 { color: #d4af37; }
+.metrics p { margin: 8px 0; }
+
+.eyebrow {
+  margin: 4px 0 8px;
+  color: #d4af37;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.plan-grid { display: grid; gap: 20px; }
+.client-summary { margin-bottom: 20px; }
+.client-summary p { margin: 8px 0; }
+.calorie-estimate { color: #d4af37; font-size: 18px; }
+.note { color: #bdbdbd; font-size: 13px; }
+.plan-card { border-top: 4px solid var(--accent); }
+.plan-card h3 { color: var(--accent); }
+.plan-card pre {
+  margin: 0;
+  color: #f5f3eb;
+  font: inherit;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.empty-state { min-height: 220px; display: grid; align-content: center; }
+.empty-state p { margin-bottom: 0; color: #d8d8d8; }
+
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; margin-top: 20px; }
+  .metrics { margin-top: 24px; }
+}
+
