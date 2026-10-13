@@ -1,0 +1,46 @@
+name: ACEest CI
+
+'on':
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: acetest-flask-app
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Create clean Python environment
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --no-cache-dir -r requirements.txt
+
+      - name: Compile Python source
+        run: .venv/bin/python -m compileall -q app.py db.py services.py reports.py tests
+
+      - name: Pytest quality gate
+        run: .venv/bin/python -m pytest -q --junitxml=reports/pytest.xml
+
+      - name: Build Docker image
+        run: docker build --pull --no-cache -t aceest:ci .
+
+      - name: Container tests and application startup check
+        working-directory: .
+        run: sh ci/test-image.sh aceest:ci

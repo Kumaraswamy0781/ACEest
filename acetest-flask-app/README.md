@@ -108,3 +108,28 @@ After testing this fresh project, stage its source files and commit:
 ```text
 feat: implement final ACEest Flask application v3.2.4
 ```
+
+## GitHub Actions and Jenkins
+
+The workflow lives at the repository root in `.github/workflows/main.yml` and runs on every push and pull request. Each run creates a fresh virtual environment, installs dependencies, compiles the Python source, runs pytest, builds a Docker image without using build-layer cache, runs pytest inside it, and checks that the Gunicorn container serves `/health` and `/api/programs`.
+
+The root `Jenkinsfile` implements the same quality gates. Jenkins clears the workspace before checking out GitHub, rebuilds the virtual environment, and publishes the pytest JUnit report. A failed command fails the pipeline. SCM polling checks for new commits every five minutes; a GitHub webhook can also be configured later.
+
+To configure Jenkins when the server is available:
+
+1. Use a Linux agent with Git, Python 3.10 or newer (3.12 recommended), `venv`, pip, and Docker. Its Jenkins service account must be able to run Docker.
+2. Install the Pipeline, Git, and JUnit plugins.
+3. Create a **Pipeline** job named `ACEest-Build`.
+4. Choose **Pipeline script from SCM**, then **Git**.
+5. Set the repository URL to `https://github.com/Kumaraswamy0781/ACEest.git` and the branch to `*/main`.
+6. Set **Script Path** to `Jenkinsfile` (at the repository root).
+7. Save and click **Build Now**. Review the console output and published test results. Once the first run loads the Jenkinsfile, subsequent commits are detected by SCM polling.
+
+You can run the container checks yourself from the repository root:
+
+```bash
+docker build --pull --no-cache -t aceest:ci acetest-flask-app
+sh ci/test-image.sh aceest:ci
+```
+
+These pipelines validate and build the app. They do not publish an image or deploy a server.
