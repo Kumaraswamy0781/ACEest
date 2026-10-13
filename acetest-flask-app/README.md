@@ -133,3 +133,22 @@ sh ci/test-image.sh aceest:ci
 ```
 
 These pipelines validate and build the app. They do not publish an image or deploy a server.
+
+### Jenkins Python and Docker prerequisites
+
+The Jenkinsfile selects the first supported executable from `python3.12`, `python3.11`, `python3.10`, and `python3`. It leaves the operating system's default interpreter in place. On a Rocky/RHEL 9 system with Python 3.12 packages available, install them with:
+
+```bash
+sudo dnf install -y python3.12 python3.12-pip
+```
+
+For a Jenkins service installed directly on a Linux machine using the standard Docker socket, allow the service account to access Docker and restart Jenkins so its new group membership takes effect:
+
+```bash
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+sudo -u jenkins -H python3.12 --version
+sudo -u jenkins -H docker info
+```
+
+Membership in the Docker group gives Jenkins administrative control of Docker on that machine. If these checks fail, correct the agent's Python installation or Docker access before running the job again.

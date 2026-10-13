@@ -27,8 +27,9 @@ pipeline {
                 dir(env.APP_DIR) {
                     sh '''
                         set -eu
-                        python3 -c 'import sys; assert sys.version_info >= (3, 10), "Python 3.10 or newer is required"'
-                        python3 -m venv .venv
+                        python_bin=$(sh ../ci/select-python.sh)
+                        "$python_bin" --version
+                        "$python_bin" -m venv .venv
                         .venv/bin/python -m pip install --no-cache-dir -r requirements.txt
                     '''
                 }
@@ -52,6 +53,9 @@ pipeline {
             steps {
                 dir(env.APP_DIR) {
                     sh 'docker build --pull --no-cache -t "$IMAGE_TAG" .'
+                    script {
+                        env.IMAGE_BUILT = 'true'
+                    }
                 }
             }
         }
@@ -63,13 +67,15 @@ pipeline {
     }
     post {
         always {
-            junit testResults: 'acetest-flask-app/reports/pytest.xml', allowEmptyResults: true
-            archiveArtifacts artifacts: 'acetest-flask-app/reports/pytest.xml', allowEmptyArchive: true
-            sh '''
-                if [ -n "${IMAGE_TAG:-}" ]; then
-                    docker image rm "$IMAGE_TAG" || true
-                fi
-            '''
+            script {
+                if (fileExists('acetest-flask-app/reports/pytest.xml')) {
+                    junit testResults: 'acetest-flask-app/reports/pytest.xml'
+                    archiveArtifacts artifacts: 'acetest-flask-app/reports/pytest.xml'
+                }
+                if (env.IMAGE_BUILT == 'true') {
+                    sh 'docker image rm "$IMAGE_TAG" || true'
+                }
+            }
         }
         cleanup {
             deleteDir()
