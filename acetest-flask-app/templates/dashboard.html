@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% from '_forms.html' import profile with context %}{% block content %}
+<div class="page-heading"><div><p class="eyebrow">DASHBOARD</p><h1>Your clients</h1><p class="muted">Profiles, memberships, and training progress in one place.</p></div><span class="count">{{ clients|length }} clients</span></div>
+<div class="dashboard-grid"><section class="card"><h2>Client directory</h2>{% if clients %}<div class="table-scroll"><table><thead><tr><th>Client</th><th>Program</th><th>Membership</th></tr></thead><tbody>{% for client in clients %}<tr><td><a href="{{ url_for('client_view', client_id=client.id) }}">{{ client.name }}</a></td><td>{{ client.program }}</td><td><span class="badge">{{ client.effective_membership_status }}</span></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty">No clients yet. Add the first profile to get started.</p>{% endif %}</section>
+{% if g.user.role != 'Viewer' %}<section class="card"><h2>Add a client</h2>{{ profile(programs) }}</section>{% endif %}</div>
+{% endblock %}

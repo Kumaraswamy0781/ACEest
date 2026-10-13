@@ -1,0 +1,11 @@
+{% macro token() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+{% macro profile(programs, client={}) %}
+<form action="{{ url_for('browser_save_client') }}" method="post" class="form-grid">{{ token() }}{% if client %}<input type="hidden" name="client_id" value="{{ client.id }}">{% endif %}
+<label>Name<input name="name" value="{{ client.get('name', '') }}" maxlength="100" required></label><label>Age<input name="age" type="number" min="1" max="130" value="{{ client.get('age', '') }}" required></label>
+<label>Height (cm)<input name="height" type="number" step="0.1" min="0.1" value="{{ client.get('height', '') }}" required></label><label>Weight (kg)<input name="weight" type="number" step="0.1" min="0.1" value="{{ client.get('weight', '') }}" required></label>
+<label>Program<select name="program">{% for name in programs %}<option {% if client.get('program') == name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+<label>Target weight (kg)<input name="target_weight" type="number" step="0.1" min="0.1" value="{{ client.get('target_weight') if client.get('target_weight') is not none else '' }}"></label>
+<label>Target adherence (%)<input name="target_adherence" type="number" min="0" max="100" value="{{ client.get('target_adherence') if client.get('target_adherence') is not none else '' }}"></label>
+<label>Membership status<select name="membership_status">{% for status in ['Active', 'Paused', 'Expired'] %}<option {% if client.get('membership_status') == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></label>
+<label>Membership end date<input name="membership_end" type="date" value="{{ client.get('membership_end') or '' }}"></label><div class="form-end"><button>Save client</button></div></form>
+{% endmacro %}
