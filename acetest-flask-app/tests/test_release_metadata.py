@@ -34,7 +34,7 @@ def test_health_returns_default_release_without_login(make_app):
     assert response.mimetype == 'application/json'
     assert response.json == {
         'status': 'ok',
-        'version': '3.3.0',
+        'version': '3.4.0',
         'build_sha': 'unknown',
         'instance': 'test-host',
     }
@@ -112,7 +112,7 @@ def test_empty_metadata_uses_defaults(make_app, monkeypatch, value):
         monkeypatch.setenv(name, value)
 
     assert make_app().test_client().get('/health').json == {
-        'status': 'ok', 'version': '3.3.0',
+        'status': 'ok', 'version': '3.4.0',
         'build_sha': 'unknown', 'instance': 'test-host',
     }
 

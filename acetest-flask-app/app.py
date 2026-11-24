@@ -1,9 +1,8 @@
-"""ACEest Flask application with configurable release metadata, version 3.3.0."""
+"""ACEest Flask application with configurable release metadata, version 3.4.0."""
 import os
 from pathlib import Path
 import secrets
 import socket
-import sqlite3
 from datetime import date
 from io import BytesIO
 
@@ -11,7 +10,7 @@ import click
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from db import close_db, get_db, init_db
+from db import IntegrityError, get_db, init_app
 from services import (PROGRAMS, MissingClient, ValidationError, add_record, generate_program,
                       get_client, history, save_client)
 
@@ -23,11 +22,12 @@ def _metadata_value(name, default):
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
-    app.config.from_mapping(DATABASE=os.environ.get('ACEEST_DATABASE', str(Path(app.instance_path) / 'aceest.sqlite')),
+    app.config.from_mapping(DATABASE_URL=os.environ.get('ACEEST_DATABASE_URL') or None,
+                            DATABASE=os.environ.get('ACEEST_DATABASE', str(Path(app.instance_path) / 'aceest.sqlite')),
                             SECRET_KEY=os.environ.get('ACEEST_SECRET_KEY'), SESSION_COOKIE_HTTPONLY=True,
                             SESSION_COOKIE_SAMESITE='Lax', MAX_CONTENT_LENGTH=1024 * 1024)
     app.config.from_mapping(
-        APP_VERSION=_metadata_value('ACEEST_APP_VERSION', '3.3.0'),
+        APP_VERSION=_metadata_value('ACEEST_APP_VERSION', '3.4.0'),
         BUILD_SHA=_metadata_value('ACEEST_BUILD_SHA', 'unknown'),
         INSTANCE_ID=_metadata_value(
             'ACEEST_INSTANCE_ID', _metadata_value('HOSTNAME', socket.gethostname())
@@ -35,7 +35,10 @@ def create_app(test_config=None):
     )
     if test_config:
         app.config.update(test_config)
-    Path(app.config['DATABASE']).parent.mkdir(parents=True, exist_ok=True)
+        if 'DATABASE' in test_config and 'DATABASE_URL' not in test_config:
+            app.config['DATABASE_URL'] = None
+    if app.config['DATABASE_URL'] and not (app.config['SECRET_KEY'] or '').strip():
+        raise ValueError('Set ACEEST_SECRET_KEY to a shared secret when using PostgreSQL.')
     if not app.config['SECRET_KEY']:
         Path(app.instance_path).mkdir(parents=True, exist_ok=True)
         secret_path = Path(app.instance_path) / '.session-key'
@@ -46,9 +49,7 @@ def create_app(test_config=None):
         except FileExistsError:
             pass
         app.config['SECRET_KEY'] = secret_path.read_text()
-    app.teardown_appcontext(close_db)
-    with app.app_context():
-        init_db()
+    init_app(app)
 
     def is_api():
         return request.path.startswith('/api/') or request.is_json or request.path in ('/clients', '/programs')
@@ -63,7 +64,7 @@ def create_app(test_config=None):
     def authenticate():
         g.user = None
         if session.get('user_id'):
-            g.user = get_db().execute('SELECT id,username,role FROM users WHERE id=?', (session['user_id'],)).fetchone()
+            g.user = get_db().execute('SELECT id,username,role FROM users WHERE id=:id', {'id': session['user_id']}).fetchone()
         if request.endpoint in ('static', 'health', 'programs', 'login'):
             if request.endpoint == 'login' and request.method == 'POST':
                 check_csrf()
@@ -94,7 +95,7 @@ def create_app(test_config=None):
             return jsonify(error=str(error)), 404
         return render_template('error.html', message=str(error)), 404
 
-    @app.errorhandler(sqlite3.IntegrityError)
+    @app.errorhandler(IntegrityError)
     def duplicate(error):
         message = 'A client with that name already exists.'
         if is_api():
@@ -112,9 +113,9 @@ def create_app(test_config=None):
         db = get_db()
         try:
             with db:
-                db.execute('INSERT INTO users (username,password_hash,role) VALUES (?,?,?)',
-                           (username.strip(), generate_password_hash(password), role))
-        except sqlite3.IntegrityError:
+                db.execute('INSERT INTO users (username,password_hash,role) VALUES (:username,:password_hash,:role)',
+                           {'username': username.strip(), 'password_hash': generate_password_hash(password), 'role': role})
+        except IntegrityError:
             raise click.ClickException('That username already exists.')
         click.echo(f'Created {role} account {username}.')
 
@@ -122,7 +123,8 @@ def create_app(test_config=None):
     def login():
         error = None
         if request.method == 'POST':
-            user = get_db().execute('SELECT * FROM users WHERE username=?', (request.form.get('username', '').strip(),)).fetchone()
+            user = get_db().execute('SELECT * FROM users WHERE LOWER(username)=LOWER(:username)',
+                                     {'username': request.form.get('username', '').strip()}).fetchone()
             if user and check_password_hash(user['password_hash'], request.form.get('password', '')):
                 session.clear()
                 session['user_id'] = user['id']
@@ -158,7 +160,7 @@ def create_app(test_config=None):
 
     @app.get('/')
     def dashboard():
-        clients = [get_client(row['id']) for row in get_db().execute('SELECT id FROM clients ORDER BY name')]
+        clients = [get_client(row['id']) for row in get_db().execute('SELECT id FROM clients ORDER BY LOWER(name)')]
         return render_template('dashboard.html', clients=clients, programs=PROGRAMS)
 
     @app.post('/clients/save')
@@ -217,7 +219,7 @@ def create_app(test_config=None):
     def clients_api():
         if request.method == 'POST':
             return jsonify(save_client(payload())), 201
-        return jsonify([get_client(row['id']) for row in get_db().execute('SELECT id FROM clients ORDER BY name')])
+        return jsonify([get_client(row['id']) for row in get_db().execute('SELECT id FROM clients ORDER BY LOWER(name)')])
 
     @app.route('/api/clients/<int:client_id>', methods=['GET', 'PUT'])
     def client_api(client_id):

@@ -85,18 +85,15 @@ def save_client(data, client_id=None):
         get_client(client_id)
     with db:
         if client_id is None:
-            names = ','.join(profile)
-            placeholders = ','.join('?' for _ in profile)
-            cursor = db.execute(f'INSERT INTO clients ({names}) VALUES ({placeholders})', tuple(profile.values()))
-            client_id = cursor.lastrowid
+            client_id = db.insert('clients', profile)
         else:
-            db.execute('UPDATE clients SET ' + ','.join(f'{key}=?' for key in profile) + ', generated_program=NULL WHERE id=?',
-                       (*profile.values(), client_id))
+            db.execute('UPDATE clients SET ' + ','.join(f'{key}=:{key}' for key in profile) + ', generated_program=NULL WHERE id=:client_id',
+                       {**profile, 'client_id': client_id})
     return get_client(client_id)
 
 
 def get_client(client_id):
-    row = get_db().execute('SELECT * FROM clients WHERE id=?', (client_id,)).fetchone()
+    row = get_db().execute('SELECT * FROM clients WHERE id=:id', {'id': client_id}).fetchone()
     if row is None:
         raise MissingClient('Client not found.')
     result = dict(row)
@@ -112,10 +109,10 @@ def history(client_id, kind):
     if kind not in ('progress', 'workouts', 'metrics'):
         raise ValidationError('Unknown history type.')
     order = 'id' if kind == 'progress' else 'date, id'
-    result = [dict(row) for row in get_db().execute(f'SELECT * FROM {kind} WHERE client_id=? ORDER BY {order}', (client_id,))]
+    result = [dict(row) for row in get_db().execute(f'SELECT * FROM {kind} WHERE client_id=:client_id ORDER BY {order}', {'client_id': client_id})]
     if kind == 'workouts':
         for workout in result:
-            workout['exercises'] = [dict(row) for row in get_db().execute('SELECT * FROM exercises WHERE workout_id=? ORDER BY id', (workout['id'],))]
+            workout['exercises'] = [dict(row) for row in get_db().execute('SELECT * FROM exercises WHERE workout_id=:workout_id ORDER BY id', {'workout_id': workout['id']})]
     return result
 
 
@@ -152,11 +149,11 @@ def add_record(client_id, kind, data):
                               number(item.get('weight', 0), 'Exercise weight', 0)))
     db = get_db()
     with db:
-        cursor = db.execute(f'INSERT INTO {kind} ({",".join(record)}) VALUES ({",".join("?" for _ in record)})', tuple(record.values()))
-        record['id'] = cursor.lastrowid
+        record['id'] = db.insert(kind, record)
         if kind == 'workouts':
-            db.executemany('INSERT INTO exercises (workout_id,name,sets,reps,weight) VALUES (?,?,?,?,?)',
-                           [(record['id'], *exercise) for exercise in exercises])
+            db.executemany('INSERT INTO exercises (workout_id,name,sets,reps,weight) VALUES (:workout_id,:name,:sets,:reps,:weight)',
+                           [dict(zip(('workout_id', 'name', 'sets', 'reps', 'weight'), (record['id'], *exercise)))
+                            for exercise in exercises])
     return record
 
 
@@ -165,5 +162,5 @@ def generate_program(client_id):
     generated = secrets.choice(PROGRAMS[client['program']]['templates'])
     db = get_db()
     with db:
-        db.execute('UPDATE clients SET generated_program=? WHERE id=?', (generated, client_id))
+        db.execute('UPDATE clients SET generated_program=:program WHERE id=:id', {'program': generated, 'id': client_id})
     return get_client(client_id)

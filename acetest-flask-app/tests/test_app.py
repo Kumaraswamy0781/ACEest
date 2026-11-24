@@ -1,5 +1,4 @@
 """Behavior tests for the fresh final application using isolated databases."""
-import sqlite3
 from datetime import date, timedelta
 
 import pytest
@@ -9,12 +8,12 @@ from db import get_db
 
 
 @pytest.fixture
-def app(tmp_path):
-    application = create_app({'TESTING': True, 'DATABASE': str(tmp_path / 'test.sqlite'), 'SECRET_KEY': 'test-key'})
+def app(database_config):
+    application = create_app({'TESTING': True, **database_config, 'SECRET_KEY': 'test-key'})
     with application.app_context():
         db = get_db()
-        db.execute('INSERT INTO users (username,password_hash,role) VALUES (?,?,?)',
-                   ('trainer', generate_password_hash('password123'), 'Admin'))
+        db.execute('INSERT INTO users (username,password_hash,role) VALUES (:username,:password_hash,:role)',
+                   {'username': 'trainer', 'password_hash': generate_password_hash('password123'), 'role': 'Admin'})
         db.commit()
     return application
 
@@ -178,7 +177,8 @@ def test_browser_can_create_client(client):
 def test_viewer_can_read_but_cannot_modify(app):
     with app.app_context():
         db = get_db()
-        db.execute('INSERT INTO users (username,password_hash,role) VALUES (?,?,?)', ('reader', generate_password_hash('password123'), 'Viewer'))
+        db.execute('INSERT INTO users (username,password_hash,role) VALUES (:username,:password_hash,:role)',
+                   {'username': 'reader', 'password_hash': generate_password_hash('password123'), 'role': 'Viewer'})
         db.commit()
     reader = app.test_client()
     login(reader, username='reader')
@@ -203,6 +203,6 @@ def test_create_user_command_stores_hashed_password(app):
     result = app.test_cli_runner().invoke(args=['create-user', 'coach', '--role', 'Coach'], input='password123\npassword123\n')
     assert result.exit_code == 0
     with app.app_context():
-        user = get_db().execute('SELECT * FROM users WHERE username=?', ('coach',)).fetchone()
+        user = get_db().execute('SELECT * FROM users WHERE username=:username', {'username': 'coach'}).fetchone()
         assert user['role'] == 'Coach'
         assert user['password_hash'] != 'password123'
