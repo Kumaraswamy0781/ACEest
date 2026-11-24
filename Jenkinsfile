@@ -11,6 +11,7 @@ pipeline {
     }
     environment {
         APP_DIR = 'acetest-flask-app'
+        REGISTRY_IMAGE = 'bitspilani12/aceest'
     }
     stages {
         stage('Clean checkout') {
@@ -100,6 +101,23 @@ pipeline {
                 sh 'sh ci/test-image.sh "$IMAGE_TAG"'
             }
         }
+        stage('Publish validated image to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'aceest-dockerhub',
+                    usernameVariable: 'DOCKERHUB_USERNAME',
+                    passwordVariable: 'DOCKERHUB_TOKEN'
+                )]) {
+                    sh '''
+                        set +x
+                        set -eu
+                        aceest_commit=$(git rev-parse HEAD)
+                        bash ci/push-image.sh "$IMAGE_TAG" "$REGISTRY_IMAGE" \
+                            "$aceest_commit" "$BUILD_NUMBER" "$APP_DIR/reports"
+                    '''
+                }
+            }
+        }
     }
     post {
         always {
@@ -107,6 +125,9 @@ pipeline {
                 if (fileExists('acetest-flask-app/reports/pytest.xml')) {
                     junit testResults: 'acetest-flask-app/reports/pytest.xml'
                     archiveArtifacts artifacts: 'acetest-flask-app/reports/*.xml'
+                }
+                if (fileExists('acetest-flask-app/reports/docker-image.txt')) {
+                    archiveArtifacts artifacts: 'acetest-flask-app/reports/docker-image.txt'
                 }
                 if (env.IMAGE_BUILT == 'true') {
                     sh 'docker image rm "$IMAGE_TAG" || true'
