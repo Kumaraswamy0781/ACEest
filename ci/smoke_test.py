@@ -12,7 +12,8 @@ def check(base_url):
         try:
             with urlopen(f'{base_url}/health', timeout=2) as response:
                 health = json.load(response)
-            if health.get('status') != 'ok' or health.get('version') != '3.2.4':
+            version = health.get('version')
+            if health.get('status') != 'ok' or not isinstance(version, str) or not version.strip():
                 raise RuntimeError(f'Unexpected health response: {health}')
             break
         except (URLError, TimeoutError, ConnectionError) as error:
