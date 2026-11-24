@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest
+  namespace: aceest
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 300
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aceest
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aceest
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: aceest
+          # Verified on Docker Hub as jenkins-3 and sha-8c181ec03093.
+          image: docker.io/bitspilani12/aceest@sha256:aa8c0c57d90add2d59662dc989bf4ed1953d30177ce3a5dbd7c96be7c0d6ef90
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: ACEEST_BUILD_SHA
+              value: "8c181ec0309328026e4a43023da129b6d036ef36"
+            - name: ACEEST_INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ACEEST_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: aceest-runtime
+                  key: ACEEST_DATABASE_URL
+            - name: ACEEST_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aceest-runtime
+                  key: ACEEST_SECRET_KEY
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 384Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest
+  namespace: aceest
+spec:
+  selector:
+    app.kubernetes.io/name: aceest
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
