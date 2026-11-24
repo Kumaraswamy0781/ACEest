@@ -5,3 +5,5 @@ __pycache__/
 .pytest_cache/
 .coverage
 reports/
+/.venv/
+/aceest-final-v3.2.4.zip
