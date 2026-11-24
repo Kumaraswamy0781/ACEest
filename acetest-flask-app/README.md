@@ -152,3 +152,35 @@ sudo -u jenkins -H docker info
 ```
 
 Membership in the Docker group gives Jenkins administrative control of Docker on that machine. If these checks fail, correct the agent's Python installation or Docker access before running the job again.
+
+## Assignment 2 configurable release metadata
+
+The application defaults to version 3.3.0.
+
+Release metadata is configured through these environment variables:
+
+- ACEEST_APP_VERSION: application version; defaults to 3.3.0.
+- ACEEST_BUILD_SHA: source commit identifier; defaults to unknown.
+- ACEEST_INSTANCE_ID: instance identifier; falls back to HOSTNAME,
+  then the operating system hostname.
+
+Settings are read when the application starts. Restart the application
+after changing its environment. Blank metadata values use defaults.
+
+Public GET /health returns status, version, build_sha and instance.
+The response uses Cache-Control: no-store. The page footer displays
+the same metadata. These public labels must not contain credentials.
+
+The health endpoint identifies the running process; it does not check
+database readiness.
+
+Run the metadata tests:
+
+    python -m pytest -q tests/test_release_metadata.py
+
+Run the complete suite:
+
+    python -m pytest -q
+
+Changing a metadata label does not create a different application release.
+Image versions must correspond to the source code they contain.

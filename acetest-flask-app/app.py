@@ -1,7 +1,8 @@
-"""Standalone ACEest Flask final version 3.2.4."""
+"""ACEest Flask application with configurable release metadata, version 3.3.0."""
 import os
 from pathlib import Path
 import secrets
+import socket
 import sqlite3
 from datetime import date
 from io import BytesIO
@@ -15,11 +16,23 @@ from services import (PROGRAMS, MissingClient, ValidationError, add_record, gene
                       get_client, history, save_client)
 
 
+def _metadata_value(name, default):
+    """Read a non-empty metadata setting, ignoring surrounding whitespace."""
+    return os.environ.get(name, '').strip() or default
+
+
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(DATABASE=os.environ.get('ACEEST_DATABASE', str(Path(app.instance_path) / 'aceest.sqlite')),
                             SECRET_KEY=os.environ.get('ACEEST_SECRET_KEY'), SESSION_COOKIE_HTTPONLY=True,
                             SESSION_COOKIE_SAMESITE='Lax', MAX_CONTENT_LENGTH=1024 * 1024)
+    app.config.from_mapping(
+        APP_VERSION=_metadata_value('ACEEST_APP_VERSION', '3.3.0'),
+        BUILD_SHA=_metadata_value('ACEEST_BUILD_SHA', 'unknown'),
+        INSTANCE_ID=_metadata_value(
+            'ACEEST_INSTANCE_ID', _metadata_value('HOSTNAME', socket.gethostname())
+        ),
+    )
     if test_config:
         app.config.update(test_config)
     Path(app.config['DATABASE']).parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +138,14 @@ def create_app(test_config=None):
 
     @app.get('/health')
     def health():
-        return jsonify(status='ok', version='3.2.4')
+        response = jsonify(
+            status='ok',
+            version=app.config['APP_VERSION'],
+            build_sha=app.config['BUILD_SHA'],
+            instance=app.config['INSTANCE_ID'],
+        )
+        response.headers['Cache-Control'] = 'no-store'
+        return response
 
     @app.get('/api/programs')
     @app.get('/programs')

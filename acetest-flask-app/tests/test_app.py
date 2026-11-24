@@ -58,7 +58,14 @@ def client_id(client):
 
 
 def test_health_is_public(app):
-    assert app.test_client().get('/health').json == {'status': 'ok', 'version': '3.2.4'}
+    response = app.test_client().get('/health')
+    assert response.status_code == 200
+    assert response.json == {
+        'status': 'ok',
+        'version': app.config['APP_VERSION'],
+        'build_sha': app.config['BUILD_SHA'],
+        'instance': app.config['INSTANCE_ID'],
+    }
 
 
 def test_anonymous_users_cannot_access_client_data(app):
