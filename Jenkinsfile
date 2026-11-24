@@ -45,7 +45,43 @@ pipeline {
         stage('Pytest quality gate') {
             steps {
                 dir(env.APP_DIR) {
-                    sh '.venv/bin/python -m pytest -q --junitxml=reports/pytest.xml'
+                    sh '''
+                        set -eu
+                        .venv/bin/python -m coverage run -m pytest -q --junitxml=reports/pytest.xml
+                        .venv/bin/python -m coverage xml
+                        .venv/bin/python -m coverage report
+                    '''
+                }
+            }
+        }
+        stage('SonarQube analysis') {
+            steps {
+                dir(env.APP_DIR) {
+                    withSonarQubeEnv('ACEest-SonarQube') {
+                        script {
+                            def scannerHome = tool 'SonarScanner'
+                            withEnv(["SONAR_SCANNER_HOME=${scannerHome}", "SONAR_SCANNER_JAVA_OPTS=-Xmx512m"]) {
+                                sh '''
+                                    set +x
+                                    set -eu
+                                    export SONAR_TOKEN="$SONAR_AUTH_TOKEN"
+                                    "$SONAR_SCANNER_HOME/bin/sonar-scanner"
+                                '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('SonarQube quality gate') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    script {
+                        def gate = waitForQualityGate()
+                        if (gate.status != 'OK') {
+                            error "SonarQube quality gate failed: ${gate.status}"
+                        }
+                    }
                 }
             }
         }
@@ -70,7 +106,7 @@ pipeline {
             script {
                 if (fileExists('acetest-flask-app/reports/pytest.xml')) {
                     junit testResults: 'acetest-flask-app/reports/pytest.xml'
-                    archiveArtifacts artifacts: 'acetest-flask-app/reports/pytest.xml'
+                    archiveArtifacts artifacts: 'acetest-flask-app/reports/*.xml'
                 }
                 if (env.IMAGE_BUILT == 'true') {
                     sh 'docker image rm "$IMAGE_TAG" || true'
